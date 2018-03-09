@@ -1,11 +1,3 @@
-/*
-Thanks Nghia Ho for his excellent code.
-And,I modified the smooth step using a simple kalman filter .
-So,It can processes live video streaming.
-modified by chen jia.
-email:chenjia2013@foxmail.com
-*/
-
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <cassert>
@@ -16,16 +8,8 @@ email:chenjia2013@foxmail.com
 using namespace std;
 using namespace cv;
 
-// This video stablisation smooths the global trajectory using a sliding average window
 
-//const int SMOOTHING_RADIUS = 15; // In frames. The larger the more stable the video, but less reactive to sudden panning
-const int HORIZONTAL_BORDER_CROP = 20; // In pixels. Crops the border to reduce the black borders from stabilisation being too noticeable.
-
-// 1. Get previous to current frame transformation (dx, dy, da) for all frames
-// 2. Accumulate the transformations to get the image trajectory
-// 3. Smooth out the trajectory using an averaging window
-// 4. Generate new set of previous to current transform, such that the trajectory ends up being the same as the smoothed trajectory
-// 5. Apply the new transformation to the video
+const int HORIZONTAL_BORDER_CROP = 20;
 
 struct TransformParam
 {
@@ -38,7 +22,7 @@ struct TransformParam
 
     double dx;
     double dy;
-    double da; // angle
+    double da;
 };
 
 struct Trajectory
@@ -80,11 +64,6 @@ struct Trajectory
 //
 int main(int argc, char **argv)
 {
-	// For further analysis
-	ofstream out_transform("prev_to_cur_transformation.txt");
-	ofstream out_trajectory("trajectory.txt");
-	ofstream out_smoothed_trajectory("smoothed_trajectory.txt");
-	ofstream out_new_transform("new_prev_to_cur_transformation.txt");
 
 	VideoCapture cap(0);
 	assert(cap.isOpened());
@@ -93,20 +72,14 @@ int main(int argc, char **argv)
 	Mat cur, cur_grey;
 	Mat prev, prev_grey;
 
-	cap >> prev;//get the first frame.ch
+	cap >> prev;
 	cvtColor(prev, prev_grey, COLOR_BGR2GRAY);
 	
-	// Step 1 - Get previous to current frame transformation (dx, dy, da) for all frames
-	vector <TransformParam> prev_to_cur_transform; // previous to current
-	// Accumulated frame to frame transform
+
 	double a = 0;
 	double x = 0;
 	double y = 0;
-	// Step 2 - Accumulate the transformations to get the image trajectory
-	vector <Trajectory> trajectory; // trajectory at all frames
-	//
-	// Step 3 - Smooth out the trajectory using an averaging window
-	vector <Trajectory> smoothed_trajectory; // trajectory at all frames
+
 	Trajectory X;//posteriori state estimate
 	Trajectory	X_;//priori estimate
 	Trajectory P;// posteriori estimate error covariance
@@ -117,11 +90,7 @@ int main(int argc, char **argv)
 	double cstd = 0.25;//can be changed
 	Trajectory Q(pstd,pstd,pstd);// process noise covariance
 	Trajectory R(cstd,cstd,cstd);// measurement noise covariance 
-	// Step 4 - Generate new set of previous to current transform, such that the trajectory ends up being the same as the smoothed trajectory
-	vector <TransformParam> new_prev_to_cur_transform;
-	//
-	// Step 5 - Apply the new transformation to the video
-	//cap.set(CV_CAP_PROP_POS_FRAMES, 0);
+
 	Mat T(2,3,CV_64F);
 
 	int vert_border = HORIZONTAL_BORDER_CROP * prev.rows / prev.cols; // get the aspect ratio correct
@@ -172,21 +141,12 @@ int main(int argc, char **argv)
 		double dx = T.at<double>(0,2);
 		double dy = T.at<double>(1,2);
 		double da = atan2(T.at<double>(1,0), T.at<double>(0,0));
-		//
-		//prev_to_cur_transform.push_back(TransformParam(dx, dy, da));
 
-		//out_transform << k << " " << dx << " " << dy << " " << da << endl;
-		//
-		// Accumulated frame to frame transform
 		x += dx;
 		y += dy;
 		a += da;
-		//trajectory.push_back(Trajectory(x,y,a));
-		//
-		//out_trajectory << k << " " << x << " " << y << " " << a << endl;
-		//
+
 		z = Trajectory(x,y,a);
-		//
 		if(k==1){
 			// intial guesses
 			X = Trajectory(0,0,0); //Initial estimate,  set 0
@@ -202,10 +162,7 @@ int main(int argc, char **argv)
 			X = X_+K*(z-X_); //z-X_ is residual,X(k) = X_(k)+K(k)*(z(k)-X_(k)); 
 			P = (Trajectory(1,1,1)-K)*P_; //P(k) = (1-K(k))*P_(k);
 		}
-		//smoothed_trajectory.push_back(X);
-		//out_smoothed_trajectory << k << " " << X.x << " " << X.y << " " << X.a << endl;
-		//-
-		// target - current
+
 		double diff_x = X.x - x;//
 		double diff_y = X.y - y;
 		double diff_a = X.a - a;
@@ -214,10 +171,7 @@ int main(int argc, char **argv)
 		dy = dy + diff_y;
 		da = da + diff_a;
 
-		//new_prev_to_cur_transform.push_back(TransformParam(dx, dy, da));
-		//
-		//out_new_transform << k << " " << dx << " " << dy << " " << da << endl;
-		//
+
 		T.at<double>(0,0) = cos(da);
 		T.at<double>(0,1) = -sin(da);
 		T.at<double>(1,0) = sin(da);
