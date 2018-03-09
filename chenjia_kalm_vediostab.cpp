@@ -6,13 +6,13 @@ modified by chen jia.
 email:chenjia2013@foxmail.com
 */
 
-#include "stdafx.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <fstream>
-
+#define camera_width 320 
+#define camera_height 240
 using namespace std;
 using namespace cv;
 
@@ -88,7 +88,8 @@ int main(int argc, char **argv)
 
 	VideoCapture cap(0);
 	assert(cap.isOpened());
-
+	cap.set(CAP_PROP_FRAME_WIDTH,camera_width);
+	cap.set(CAP_PROP_FRAME_HEIGHT,camera_height);
 	Mat cur, cur_grey;
 	Mat prev, prev_grey;
 
@@ -124,8 +125,7 @@ int main(int argc, char **argv)
 	Mat T(2,3,CV_64F);
 
 	int vert_border = HORIZONTAL_BORDER_CROP * prev.rows / prev.cols; // get the aspect ratio correct
-	VideoWriter outputVideo; 
-	outputVideo.open("E:/compare.avi" , CV_FOURCC('X','V','I','D'), 24,cvSize(cur.rows, cur.cols*2+10));  
+
 	//
 	int k=1;
 	int max_frames = cap.get(CV_CAP_PROP_FRAME_COUNT);
@@ -175,7 +175,7 @@ int main(int argc, char **argv)
 		//
 		//prev_to_cur_transform.push_back(TransformParam(dx, dy, da));
 
-		out_transform << k << " " << dx << " " << dy << " " << da << endl;
+		//out_transform << k << " " << dx << " " << dy << " " << da << endl;
 		//
 		// Accumulated frame to frame transform
 		x += dx;
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 		a += da;
 		//trajectory.push_back(Trajectory(x,y,a));
 		//
-		out_trajectory << k << " " << x << " " << y << " " << a << endl;
+		//out_trajectory << k << " " << x << " " << y << " " << a << endl;
 		//
 		z = Trajectory(x,y,a);
 		//
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 			P = (Trajectory(1,1,1)-K)*P_; //P(k) = (1-K(k))*P_(k);
 		}
 		//smoothed_trajectory.push_back(X);
-		out_smoothed_trajectory << k << " " << X.x << " " << X.y << " " << X.a << endl;
+		//out_smoothed_trajectory << k << " " << X.x << " " << X.y << " " << X.a << endl;
 		//-
 		// target - current
 		double diff_x = X.x - x;//
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 
 		//new_prev_to_cur_transform.push_back(TransformParam(dx, dy, da));
 		//
-		out_new_transform << k << " " << dx << " " << dy << " " << da << endl;
+		//out_new_transform << k << " " << dx << " " << dy << " " << da << endl;
 		//
 		T.at<double>(0,0) = cos(da);
 		T.at<double>(0,1) = -sin(da);
@@ -249,7 +249,7 @@ int main(int argc, char **argv)
 
 		imshow("before and after", canvas);
 
-		waitKey(10);
+		if((char)waitKey(10)=='e')break;
 		//
 		prev = cur.clone();//cur.copyTo(prev);
 		cur_grey.copyTo(prev_grey);
@@ -257,9 +257,7 @@ int main(int argc, char **argv)
 		cout << "Frame: " << k << "/" << max_frames << " - good optical flow: " << prev_corner2.size() << endl;
 		k++;
 
-		if(!outputVideo.isOpened())
-			outputVideo.open("E:/compare.avi",CV_FOURCC('X','V','I','D'), 30,canvas.size());
-		outputVideo << canvas;
+
 	}
 	return 0;
 }
